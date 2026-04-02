@@ -1,0 +1,19 @@
+{
+  "name": "credix-claude-skills",
+  "description": "Reusable development workflow skills: plan tasks, implement plans, review code, and watch PRs",
+  "version": "1.0.0",
+  "author": {
+    "name": "Credix",
+    "url": "https://github.com/credix-finance"
+  },
+  "homepage": "https://github.com/credix-finance/credix-claude-skills",
+  "repository": "https://github.com/credix-finance/credix-claude-skills",
+  "license": "MIT",
+  "keywords": [
+    "workflow",
+    "planning",
+    "implementation",
+    "code-review",
+    "ci-monitoring"
+  ]
+}
