@@ -13,13 +13,14 @@ A Claude Code plugin providing reusable development workflow skills.
 
 ## Installation
 
-Add this plugin to your Claude Code configuration:
+Add the Credix marketplace and install the plugin:
 
-```bash
-claude plugin install credix-claude-skills@<marketplace>
+```
+/plugin marketplace add credix-finance/credix-claude-skills
+/plugin install credix-claude-skills@credix-plugins
 ```
 
-Or for local development:
+For local development:
 
 ```bash
 claude --plugin-dir /path/to/credix-claude-skills

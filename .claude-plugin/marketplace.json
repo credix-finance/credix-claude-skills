@@ -1,0 +1,14 @@
+{
+  "name": "credix-plugins",
+  "owner": {
+    "name": "Credix",
+    "url": "https://github.com/credix-finance"
+  },
+  "plugins": [
+    {
+      "name": "credix-claude-skills",
+      "source": ".",
+      "description": "Reusable dev workflow: plan tasks, implement plans, review code, watch PRs"
+    }
+  ]
+}
