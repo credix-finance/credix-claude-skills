@@ -49,7 +49,3 @@ These skills form an integrated development workflow:
 
 - [GitHub CLI](https://cli.github.com/) (`gh`) for PR operations
 - [Linear MCP](https://github.com/anthropics/linear-mcp) for Linear issue integration (optional)
-
-## License
-
-MIT
