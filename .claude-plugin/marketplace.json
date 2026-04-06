@@ -7,7 +7,7 @@
   "plugins": [
     {
       "name": "credix-claude-skills",
-      "source": ".",
+      "source": "./",
       "description": "Reusable dev workflow: plan tasks, implement plans, review code, watch PRs"
     }
   ]
