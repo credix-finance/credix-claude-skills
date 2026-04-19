@@ -2,7 +2,6 @@
 name: implementer
 description: Implements a single engineering task in its own worktree, opens a PR, and loops until CI is green and review comments are addressed. Spawned by the swarm lead.
 tools: Read, Write, Edit, Bash, Grep, Glob
-model: sonnet
 ---
 
 # Implementer — the swarm teammate role

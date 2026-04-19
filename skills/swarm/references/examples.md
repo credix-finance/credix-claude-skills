@@ -29,10 +29,10 @@ to use it.
 Plan output:
 
 ```
-Wave 0 (3 tasks, parallel):
-  - add-health-endpoint   (sonnet)     deps: []
-  - bump-python           (sonnet)     deps: []
-  - fix-typo-readme       (sonnet)     deps: []
+Wave 0 — 3 tasks (parallel):
+  - add-health-endpoint          deps=[]
+  - bump-python                  deps=[]
+  - fix-typo-readme              deps=[]
 
 No scope overlap warnings.
 ```
@@ -64,8 +64,10 @@ A must merge before B: B builds on A's schema change.
 Plan output:
 
 ```
-Wave 0: add-orders-table  (sonnet)    deps: []
-Wave 1: add-orders-api    (sonnet)    deps: [add-orders-table]
+Wave 0 — 1 task:
+  - add-orders-table             deps=[]
+Wave 1 — 1 task:
+  - add-orders-api               deps=[add-orders-table]
 ```
 
 Flow:
@@ -108,13 +110,14 @@ Two tasks touch the same file but have `depends_on: []` on both sides.
 Plan output:
 
 ```
-Wave 0 (2 tasks, parallel):
-  - add-retry-wrapper      (sonnet)    deps: []
-  - add-timeout-default    (sonnet)    deps: []
+Wave 0 — 2 tasks (parallel):
+  - add-retry-wrapper            deps=[]
+  - add-timeout-default          deps=[]
 
-WARNINGS:
-  - Scope overlap between `add-retry-wrapper` and `add-timeout-default` on
-    `src/http/client.py` with no declared dependency. Rebase thrash likely.
+Warnings:
+  - scope overlap: `add-retry-wrapper` and `add-timeout-default` have no
+    declared dependency but share scope (`src/http/client.py` vs
+    `src/http/client.py`). Rebase thrash likely.
 ```
 
 Present three options to the user:

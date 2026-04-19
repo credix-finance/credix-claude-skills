@@ -15,7 +15,6 @@ from pathlib import Path
 
 
 REQUIRED_FIELDS = ("id", "title", "spec", "depends_on")
-VALID_MODELS = ("sonnet", "opus")
 
 
 def die(msg: str) -> None:
@@ -63,8 +62,8 @@ def validate_tasks(tasks: list) -> None:
             die(f"task `{t['id']}` `scope_files` must be an array of strings")
         if "requires_plan" in t and not isinstance(t["requires_plan"], bool):
             die(f"task `{t['id']}` `requires_plan` must be a boolean")
-        if "model" in t and t["model"] not in VALID_MODELS:
-            die(f"task `{t['id']}` has invalid `model` (must be one of {VALID_MODELS})")
+        if "model" in t and (not isinstance(t["model"], str) or not t["model"]):
+            die(f"task `{t['id']}` has invalid `model` (must be a non-empty string)")
         ids.append(t["id"])
 
     seen = set()
@@ -214,11 +213,12 @@ def print_plan(tasks: list, waves: list) -> None:
         print(f"  Wave {i} — {len(wave)} task{'s' if len(wave) != 1 else ''}{parallel}:")
         for tid in wave:
             t = by_id[tid]
-            model = t.get("model", "sonnet")
+            model = t.get("model")
+            model_str = f"model={model}  " if model else ""
             badge = " [plan-required]" if t.get("requires_plan") else ""
             deps = t["depends_on"]
             deps_str = "[]" if not deps else "[" + ", ".join(deps) + "]"
-            print(f"    - {tid:<30} model={model:<6}  deps={deps_str}{badge}")
+            print(f"    - {tid:<30} {model_str}deps={deps_str}{badge}")
 
 
 def main() -> None:
