@@ -60,8 +60,15 @@ For each task, assemble:
   asks or the issue is unambiguous about them.
 
 Write `swarm.json` to the repo root and show the user the full file.
-**Require explicit user confirmation of the ingested set** before moving to
-Step 2.
+
+**Ask about planning** before final confirmation:
+
+> "Should any of these tasks require a plan + approval before implementation?
+> You can answer 'none', 'all', or list specific task ids."
+
+Set `requires_plan: true` on the tasks the user named. Default is `false`
+if the user says "none" or doesn't specify. Then **require explicit user
+confirmation of the ingested set** before moving to Step 2.
 
 See `references/schema.md` for the full schema and a worked example.
 Top-level: `trunk` (default `"main"`), `tasks` (array).
@@ -110,29 +117,34 @@ After spawning, write `"<id>": "spawned"` to `.swarm/state.json`. Do **not**
 spawn tasks from wave N+1 until the lead is satisfied wave N is healthy; new
 waves spawn on merge of their deps (see Escalate / Report).
 
-For `requires_plan: true` tasks, the spawn prompt uses Template C (plan mode
-first). Review the plan when the teammate submits it; approve or reject with
-feedback.
+For `requires_plan: true` tasks, the spawn prompt uses Template C. The
+teammate submits its plan to you as `PLAN <id>: …`. **Forward it to the
+user verbatim** (including the path to the plan file) and wait for their
+reply. Relay the user's decision back to the teammate (approve / revise
+with feedback / cancel). The lead does **not** auto-approve plans.
 
 ### 5. The loop
 
-The teammate runs the 7-step loop defined in the plugin's `agents/implementer.md`.
-Summary:
+The teammate orchestrates existing plugin skills rather than hand-rolling
+the flow. Full definition in `agents/implementer.md`. Summary:
 
-1. Read the spec. If ambiguous, message the lead and go idle. Don't guess.
-2. Implement. Run relevant local tests (not the whole suite).
-3. Push and `gh pr create` against trunk with title `"<id>: <title>"`.
-4. Watch CI via `gh pr checks <n> --watch`. On failure, read logs, fix, push.
-   **Stop condition:** 3 consecutive failures on the same test name.
-5. Wait for review. Poll `gh pr view <n> --json reviews,reviewDecision,comments`
-   every 60s. After 30 min of no activity, send a non-urgent FYI to the lead.
-6. Address review comments. In-scope → fix; out-of-scope → reply + message
-   lead `BLOCKED`. **Stop condition:** 2 rounds on the same unresolved comment.
-7. Done when CI green AND approved AND no unresolved threads. Message
-   `DONE <id>: PR #<n> ready to merge`, go idle. **Do NOT run `gh pr merge`.**
+1. **Sanity-check the spec.** Ambiguity → `BLOCKED` message, go idle.
+2. **Plan (if `requires_plan: true`)** — run `/plan-task`, send the plan
+   to the lead with `PLAN <id>: …`, go idle. Resume on lead's reply.
+3. **Implement** — run `/implement-plan`, which handles rebasing, draft
+   PR creation (if none exists), implementation with conventional commits
+   and quality gates, `/review-code` self-review, PR description update,
+   marking ready, and handing off to `/watch-pr`.
+4. **Done** — when `/watch-pr` reports the PR is ready for human review,
+   message `DONE <id>: PR #<n>` and go idle. **Do NOT run `gh pr merge`.**
 
-**The skill uses `gh` CLI, not the GitHub MCP,** for the polling loop — tight
-polling works better on `gh`.
+Stop conditions are enforced by the sub-skills (`/watch-pr` caps same-test
+CI failures at 3, has a 30-min inactivity timeout). The teammate's only
+loop-level responsibility is to translate any sub-skill escalation into
+an `ESCALATE <id>: <diagnostic>` message for the lead.
+
+**The `gh` CLI (not the GitHub MCP) is used throughout** — tight polling
+works better on `gh`.
 
 ### 6. Escalation
 
