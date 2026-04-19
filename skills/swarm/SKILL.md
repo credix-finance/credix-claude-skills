@@ -123,6 +123,12 @@ user verbatim** (including the path to the plan file) and wait for their
 reply. Relay the user's decision back to the teammate (approve / revise
 with feedback / cancel). The lead does **not** auto-approve plans.
 
+**On every `READY <id>: …`**, spawn a fresh `reviewer` teammate named
+`<id>-reviewer` using Template D. The reviewer does one thorough pass,
+posts native GitHub review comments (never `--approve`, never
+`--request-changes`), and goes idle. The implementer's `/watch-pr` picks
+those comments up and cycles. Review always runs — not gated on opt-in.
+
 ### 5. The loop
 
 The teammate orchestrates existing plugin skills rather than hand-rolling
@@ -133,10 +139,15 @@ the flow. Full definition in `agents/implementer.md`. Summary:
    to the lead with `PLAN <id>: …`, go idle. Resume on lead's reply.
 3. **Implement** — run `/implement-plan`, which handles rebasing, draft
    PR creation (if none exists), implementation with conventional commits
-   and quality gates, `/review-code` self-review, PR description update,
-   marking ready, and handing off to `/watch-pr`.
-4. **Done** — when `/watch-pr` reports the PR is ready for human review,
-   message `DONE <id>: PR #<n>` and go idle. **Do NOT run `gh pr merge`.**
+   and quality gates, PR description update, marking ready, and handing
+   off to `/watch-pr`. **No self-review** — an external reviewer handles it.
+4. **Signal READY** — message `READY <id>: PR #<n> ready for review` and
+   keep `/watch-pr` running. The lead spawns a `reviewer` teammate, whose
+   comments are picked up by `/watch-pr` and addressed like any other
+   review feedback.
+5. **Done** — when `/watch-pr` reports CI green + human-approved + no
+   unresolved threads, message `DONE <id>: PR #<n>` and go idle.
+   **Do NOT run `gh pr merge`.**
 
 Stop conditions are enforced by the sub-skills (`/watch-pr` caps same-test
 CI failures at 3, has a 30-min inactivity timeout). The teammate's only

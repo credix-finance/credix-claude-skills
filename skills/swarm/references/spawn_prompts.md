@@ -100,6 +100,48 @@ its own — wait for the lead's reply.
 
 ---
 
+## Template D — reviewer
+
+Spawn a fresh reviewer teammate on every `READY <id>: …` message from an
+implementer. The reviewer has no worktree; it fetches the PR diff via `gh`.
+
+- Teammate name: `<id>-reviewer`.
+- Subagent type: `reviewer` (see `agents/reviewer.md`).
+- Working directory: the repo root (any directory with `gh` auth works).
+
+```
+You are the reviewer teammate for task `<id>`. You do ONE thorough review
+of PR #<n> and go idle. You NEVER approve. You NEVER post request-changes.
+The human is the final approver.
+
+PR: #<n>
+Branch: swarm/<id>
+Target branch: <trunk>
+Task id: <id>
+
+Original task spec:
+-----
+<full spec verbatim from swarm.json>
+-----
+
+<if a plan was approved for this task>
+Approved plan: <path to plan file>
+</if>
+
+Review the diff against the spec (and plan, if any). Follow the flow in
+the `reviewer` subagent: load PR + context, run /review-code methodology,
+post ONE review via `gh api` with event=COMMENT containing line-level
+findings plus a summary body with severity counts and a one-line verdict.
+
+When done, message the lead:
+    message lead "DONE <id>-reviewer: Review posted on PR #<n>. Verdict: <one line>."
+
+Then go idle. Do NOT re-review after the implementer pushes fixes — if
+the human wants another pass, the lead spawns a new reviewer instance.
+```
+
+---
+
 ## How the lead constructs dependency context
 
 After each dep PR merges:
