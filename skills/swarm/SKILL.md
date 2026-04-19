@@ -74,8 +74,8 @@ Create the agent team. Spawn teammates in topological waves. For each task in
 the current wave:
 
 - **Name:** the task `id` (so `message <id>` works predictably).
-- **Subagent type:** `implementer` (the subagent definition loaded from
-  `~/.claude/agents/implementer.md`).
+- **Subagent type:** `implementer` — shipped with this plugin at
+  `agents/implementer.md`, auto-loaded when the plugin is enabled.
 - **Working directory:** the task's worktree at `.swarm/worktrees/<id>/`.
 - **Model:** `sonnet` unless the task sets `"model": "opus"`.
 - **Spawn prompt:** the task spec plus dependency context. Templates in
@@ -91,7 +91,8 @@ feedback.
 
 ### 5. The loop
 
-The teammate runs the 7-step loop defined in `roles/implementer.md`. Summary:
+The teammate runs the 7-step loop defined in the plugin's `agents/implementer.md`.
+Summary:
 
 1. Read the spec. If ambiguous, message the lead and go idle. Don't guess.
 2. Implement. Run relevant local tests (not the whole suite).
@@ -137,36 +138,41 @@ worktrees onto the new trunk, and spawns them.
 The lead does **not** clean up the team. The human decides when with
 `clean up the team`.
 
-## Hooks (recommended)
+## Hooks (pre-wired)
 
-Two hooks wired to Agent Teams events guard correctness:
+Two hooks ship with the plugin and activate automatically when it's enabled
+(`hooks/hooks.json` at the plugin root):
 
-- `TaskCompleted` → `hooks/verify_terminal.sh`. Refuses to mark a swarm task
-  completed unless its PR is actually `MERGED`.
-- `TeammateIdle` → `hooks/nudge_if_pending.sh`. Keeps a teammate working if
-  CI is still running or reviewer changes are pending.
+- `TaskCompleted` → `skills/swarm/hooks/verify_terminal.sh`. Refuses to mark
+  a swarm task completed unless its PR is actually `MERGED`.
+- `TeammateIdle` → `skills/swarm/hooks/nudge_if_pending.sh`. Keeps a teammate
+  working if CI is still running or reviewer changes are pending.
 
 Both read the hook JSON payload on stdin, extract `task_id`/`teammate_name`,
-and exit 2 with a nudge on stderr when the teammate tries to stop early.
+and exit 2 with a nudge on stderr when the teammate tries to stop early. No
+user-side `settings.json` wiring is required.
 
-## Files in this skill
+## Files in this plugin (swarm-related)
 
 ```
-skills/swarm/
-├── SKILL.md                     (this file)
-├── references/
-│   ├── schema.md                full swarm.json schema + example
-│   ├── spawn_prompts.md         three spawn templates + dep context recipe
-│   └── examples.md              four worked examples + one anti-example
-├── roles/
-│   └── implementer.md           teammate subagent definition (the 7-step loop)
-├── scripts/
-│   ├── plan.py                  validate + compute waves + scope warnings
-│   ├── setup_worktrees.py       create one worktree per task, idempotent
-│   └── wave.py                  print currently-ready task ids
-└── hooks/
-    ├── verify_terminal.sh       TaskCompleted guard: PR must be merged
-    └── nudge_if_pending.sh      TeammateIdle nudge: CI/review pending
+<plugin root>/
+├── agents/
+│   └── implementer.md          teammate subagent definition (auto-loaded)
+├── hooks/
+│   └── hooks.json              wires TaskCompleted + TeammateIdle
+└── skills/swarm/
+    ├── SKILL.md                (this file)
+    ├── references/
+    │   ├── schema.md           full swarm.json schema + example
+    │   ├── spawn_prompts.md    three spawn templates + dep context recipe
+    │   └── examples.md         four worked examples + one anti-example
+    ├── scripts/
+    │   ├── plan.py             validate + compute waves + scope warnings
+    │   ├── setup_worktrees.py  create one worktree per task, idempotent
+    │   └── wave.py             print currently-ready task ids
+    └── hooks/
+        ├── verify_terminal.sh  TaskCompleted guard: PR must be merged
+        └── nudge_if_pending.sh TeammateIdle nudge: CI/review pending
 ```
 
 ## Common failure modes
