@@ -9,37 +9,36 @@ All templates share these conventions:
 - The teammate's name is the task `id`.
 - The teammate's working directory is `.swarm/worktrees/<id>/`.
 - The teammate's subagent type is `implementer`.
-- The teammate opens the PR against `<trunk>` with title `"<id>: <title>"`.
-- The teammate follows the 7-step loop defined in the plugin's
-  `implementer` subagent (see `agents/implementer.md` in the plugin root).
+- The teammate's flow is defined in the plugin's `implementer` subagent
+  (see `agents/implementer.md`). It orchestrates `/plan-task` (when
+  `requires_plan`), `/implement-plan`, and `/watch-pr`.
 
 ---
 
-## Template A — no dependencies
+## Template A — no dependencies, no plan
 
-Use for tasks with `depends_on: []`.
+Use for tasks with `depends_on: []` and `requires_plan: false`.
 
 ```
 You are the implementer teammate for task `<id>`.
 
 Working directory: .swarm/worktrees/<id>/  (already on branch swarm/<id>)
 Target branch: <trunk>
-PR title: "<id>: <title>"
+Task id: <id>
+Title: <title>
+requires_plan: false
 
 Your task spec:
 -----
 <full spec verbatim from swarm.json>
 -----
 
-Follow the 7-step loop defined in the `implementer` subagent:
-read spec → implement → push + open PR → watch CI → wait for review →
-address comments → done.
+Follow the flow defined in the `implementer` subagent: sanity-check the
+spec, run `/implement-plan <id>` (which handles draft PR creation,
+implementation, self-review, mark-ready, and `/watch-pr`), then signal
+`DONE` when `/watch-pr` reports the PR is ready for human review.
 
-Stop conditions:
-- 3 consecutive CI failures on the same test name → ESCALATE.
-- 2 rounds of the same unresolved review comment → ESCALATE.
-
-Message the lead when you are done or escalating. Do NOT merge your own PR.
+Reminder: do NOT run `gh pr merge`. The human merges.
 ```
 
 ---
@@ -55,7 +54,9 @@ You are the implementer teammate for task `<id>`.
 Working directory: .swarm/worktrees/<id>/  (already on branch swarm/<id>,
   rebased onto latest <trunk>)
 Target branch: <trunk>
-PR title: "<id>: <title>"
+Task id: <id>
+Title: <title>
+requires_plan: <true|false>
 
 Your task spec:
 -----
@@ -68,35 +69,33 @@ their changes; build on top of them.
   - <dep-id-2>: PR #<pr-number>, merged at <merge-sha>
   ...
 
-Follow the 7-step loop defined in the `implementer` subagent.
-
-Stop conditions:
-- 3 consecutive CI failures on the same test name → ESCALATE.
-- 2 rounds of the same unresolved review comment → ESCALATE.
-
-Message the lead when you are done or escalating. Do NOT merge your own PR.
+Follow the flow defined in the `implementer` subagent. Reminder: do NOT
+run `gh pr merge`.
 ```
 
 ---
 
 ## Template C — requires plan approval
 
-Use when `requires_plan: true`. Wraps A or B (include dependency context if
-there are merged deps) and appends a plan-mode preamble.
+Use when `requires_plan: true`. Wraps A or B (include dependency context
+if any deps have merged).
 
 ```
-<Template A or B body>
+<Template A or B body, with `requires_plan: true`>
 
-BEFORE IMPLEMENTING: start in plan mode. Produce a plan covering:
-  - Files you intend to create or modify.
-  - Test strategy (which tests, what they cover, happy path + edge cases).
-  - Risks, unknowns, and how you'll handle them.
+BEFORE IMPLEMENTING: run `/plan-task` with your spec and submit the plan
+to the lead:
 
-Submit the plan to the lead for approval. Do not write any code until the
-plan is approved. If the lead requests changes, revise and resubmit. Stay in
-plan mode until approval.
+    message lead "PLAN <id>: <one-line summary>. Full plan at <path>. Awaiting approval."
 
-Once approved, exit plan mode and proceed with the 7-step loop.
+Then go idle. The LEAD FORWARDS YOUR PLAN TO THE USER and relays the
+user's decision back to you. Do NOT assume the lead approves plans on
+its own — wait for the lead's reply.
+
+- Approved → proceed with `/implement-plan`.
+- Revise with feedback → incorporate it, regenerate, resubmit as
+  `PLAN <id>: revised. …`. Go idle again.
+- Cancel → mark blocked and go idle.
 ```
 
 ---
