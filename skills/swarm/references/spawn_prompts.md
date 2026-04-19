@@ -10,7 +10,8 @@ All templates share these conventions:
 - The teammate's working directory is `.swarm/worktrees/<id>/`.
 - The teammate's subagent type is `implementer`.
 - The teammate opens the PR against `<trunk>` with title `"<id>: <title>"`.
-- The teammate follows the 7-step loop in `roles/implementer.md`.
+- The teammate follows the 7-step loop defined in the plugin's
+  `implementer` subagent (see `agents/implementer.md` in the plugin root).
 
 ---
 
@@ -30,7 +31,7 @@ Your task spec:
 <full spec verbatim from swarm.json>
 -----
 
-Follow the 7-step loop defined in ~/.claude/agents/implementer.md:
+Follow the 7-step loop defined in the `implementer` subagent:
 read spec → implement → push + open PR → watch CI → wait for review →
 address comments → done.
 
@@ -67,7 +68,7 @@ their changes; build on top of them.
   - <dep-id-2>: PR #<pr-number>, merged at <merge-sha>
   ...
 
-Follow the 7-step loop in ~/.claude/agents/implementer.md.
+Follow the 7-step loop defined in the `implementer` subagent.
 
 Stop conditions:
 - 3 consecutive CI failures on the same test name → ESCALATE.

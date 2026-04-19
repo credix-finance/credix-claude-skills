@@ -1,0 +1,24 @@
+{
+  "hooks": {
+    "TaskCompleted": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/skills/swarm/hooks/verify_terminal.sh"
+          }
+        ]
+      }
+    ],
+    "TeammateIdle": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/skills/swarm/hooks/nudge_if_pending.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
