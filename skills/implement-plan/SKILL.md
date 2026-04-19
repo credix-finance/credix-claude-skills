@@ -112,13 +112,7 @@ After validation passes:
 Repeat sections 4-5 for each logical unit until the full plan/spec is
 implemented.
 
-## 6. Self-review
-
-Run `/review-code` to self-review the complete implementation against the
-plan/spec. Fix any critical or warning issues found, run tests, and commit
-the fixes.
-
-## 7. Update the PR description
+## 6. Update the PR description
 
 Review the current PR description. If it was opened as a stub in section 2
 (or needs more context), fill it out now: summary, test plan, issue link,
@@ -127,15 +121,19 @@ and any design decisions or deviations worth noting for reviewers.
 Keep any existing structure and issue links — add to them rather than
 replacing them wholesale.
 
-## 8. Mark PR as ready
+## 7. Mark PR as ready
 
-Once all implementation is done, reviewed, and pushed:
+Once all implementation is done and pushed:
 
 ```bash
 gh pr ready
 ```
 
-## 9. Watch the PR
+Code review is performed externally — by a dedicated reviewer (e.g. the
+swarm `reviewer` agent, or a human) via native GitHub review comments.
+Do not self-review in this skill.
+
+## 8. Watch the PR
 
 Run `/watch-pr` to start the combined CI + review comment monitoring loop.
 This will:

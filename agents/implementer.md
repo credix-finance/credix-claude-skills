@@ -64,20 +64,37 @@ step 2 produced one). `/implement-plan` handles:
 - Verifying preconditions and rebasing onto the base branch.
 - Creating a draft PR if one doesn't already exist.
 - Implementing in logical units with conventional commits and quality gates.
-- Self-review via `/review-code`.
 - Filling out the PR description.
-- Marking the PR ready.
+- Marking the PR ready for review.
 - Handing off to `/watch-pr` for the CI + review loop.
 
-Include this supervisory note when you invoke it:
+**You do NOT self-review.** A dedicated `reviewer` teammate does a thorough
+review in a fresh context once you signal READY (step 4). Don't pre-empt it.
+
+Include this supervisory note when you invoke `/implement-plan`:
 
 > Swarm constraints: if the same reviewer comment recurs after 2 fix rounds,
 > stop and escalate. Do NOT run `gh pr merge` under any circumstances.
 
-### 4. Done
+### 4. Signal READY, then keep watching the PR
+
+Once `/implement-plan` has marked the PR ready for review (CI running or
+green, no blockers from `/watch-pr` yet), send the lead:
+
+```
+message lead "READY <id>: PR #<n> ready for review."
+```
+
+**Do NOT go idle here.** Keep running `/watch-pr` — a dedicated `reviewer`
+teammate will post review comments on the PR shortly. Those comments land
+as regular review feedback, and your `/watch-pr` loop picks them up and
+cycles to address them exactly like any other reviewer's input.
+
+### 5. Done
 
 When `/watch-pr` reports the PR is ready for human review (CI green,
-approved, no unresolved threads):
+reviewDecision == APPROVED — only the human approves — and no unresolved
+threads):
 
 ```
 message lead "DONE <id>: PR #<n> approved and green, ready to merge."
@@ -120,7 +137,10 @@ the lead to cancel you.
 
 Every message to the lead starts with one of these prefixes:
 
-- `DONE <id>: …` — PR is ready to merge. Going idle.
+- `DONE <id>: …` — PR is ready to merge (CI green + human-approved + no
+  unresolved threads). Going idle.
+- `READY <id>: …` — PR marked ready for review; reviewer can be spawned.
+  Still running `/watch-pr`, not idle.
 - `ESCALATE <id>: …` — hit a stop condition. Mark blocked. Go idle.
 - `BLOCKED <id>: …` — soft block (spec ambiguity, out-of-scope review,
   cancelled plan). Awaiting lead direction.
