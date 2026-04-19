@@ -1,6 +1,7 @@
 ---
 name: swarm
 description: Run a batch of refined engineering tasks as parallel PRs using Claude Code Agent Teams. Each teammate owns one task end-to-end — opens a real PR, watches CI, addresses review comments, and loops until merged or escalates when stuck. TRIGGER on phrases like "run the swarm", "burn down the backlog", "ship these Linear tickets", "work through this list/batch", "parallelize these tasks", or any time the user hands over ≥2 already-specced tickets/issues/tasks to ship in parallel. Requires Claude Code ≥2.1.32 with Agent Teams enabled (CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1) and the `gh` CLI authed. Do NOT use for single-task work, exploratory research, unrefined/ambiguous tasks, or tasks that all touch the same files — those belong in a single session.
+argument-hint: issue ids (e.g. "ENG-1234 ENG-1235") or a scope description (e.g. "all tasks on backlog", "everything in triage", "ready-to-ship issues in project X")
 ---
 
 # Swarm
@@ -31,17 +32,39 @@ teammates escalate to the human; the rest keep going.
 
 ### 1. Ingest
 
-Normalize input into `swarm.json` at the repo root. Sources:
+Determine the input from `$ARGUMENTS` and assemble `swarm.json` at the repo
+root.
 
-- Pasted JSON file path.
-- Linear MCP (fetch each issue and project context).
-- Markdown list of tickets.
-- Pasted chat excerpt with task descriptions.
+- **A list of issue IDs** (one or more Linear issue identifiers, like
+  `ENG-1234` or `ENG-1234, ENG-1235 ENG-1236`) — fetch each issue via the
+  Linear MCP. For each issue, read the description, comments, parent project
+  description, and any linked documents. Build one task per issue.
+- **A scope description** (e.g. `"all tasks on backlog"`,
+  `"everything in triage"`, `"ready-to-ship issues in project X"`) — query
+  the Linear MCP for the matching issue set first, then fetch each matching
+  issue exactly as above.
+- **No argument** — ask the user which tickets to swarm before continuing.
+  Do NOT guess.
 
-Required fields per task: `id`, `title`, `spec`, `depends_on`. Optional:
-`scope_files`, `requires_plan`, `model`. See `references/schema.md` for the
-full schema and a worked example. Top-level: `trunk` (default `"main"`),
-`tasks` (array).
+For each task, assemble:
+
+- `id` — the Linear issue id, lowercased (e.g. `eng-1234`). Becomes the
+  teammate name and the branch suffix.
+- `title` — the Linear issue title.
+- `spec` — the full refined description plus any acceptance criteria.
+  Include relevant comment context where it changes the spec.
+- `depends_on` — default `[]`. **Do NOT infer dependencies.** If a Linear
+  issue mentions a blocking or sub-issue relationship, surface it to the
+  user and add an explicit edge only on confirmation.
+- Optional `scope_files`, `requires_plan`, `model` — set only when the user
+  asks or the issue is unambiguous about them.
+
+Write `swarm.json` to the repo root and show the user the full file.
+**Require explicit user confirmation of the ingested set** before moving to
+Step 2.
+
+See `references/schema.md` for the full schema and a worked example.
+Top-level: `trunk` (default `"main"`), `tasks` (array).
 
 Dependencies are **explicit only**. Never infer them. `depends_on: []` is the
 declaration for an independent task.
