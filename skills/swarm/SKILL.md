@@ -100,7 +100,9 @@ the current wave:
 - **Subagent type:** `implementer` — shipped with this plugin at
   `agents/implementer.md`, auto-loaded when the plugin is enabled.
 - **Working directory:** the task's worktree at `.swarm/worktrees/<id>/`.
-- **Model:** `sonnet` unless the task sets `"model": "opus"`.
+- **Model:** inherits from the lead's settings unless the task pins a
+  `model`. If a task explicitly requires a stronger model, set
+  `"model": "claude-opus-4-7[1m]"` (Opus 4.7 with 1M context).
 - **Spawn prompt:** the task spec plus dependency context. Templates in
   `references/spawn_prompts.md`.
 
@@ -219,5 +221,7 @@ user-side `settings.json` wiring is required.
 - CI is GitHub Actions (or another provider visible via `gh pr checks`).
 - Trunk defaults to `main`; override per swarm in `swarm.json`.
 - One PR per task. No stacked PRs in v1.
-- Sonnet by default; Opus opt-in per task via `"model": "opus"`.
+- Teammates inherit the lead's model from user settings. A task can pin a
+  different model via `"model": "<model-id>"` (e.g. `"claude-opus-4-7[1m]"`
+  for a harder task).
 - The lead never merges. The human merges.

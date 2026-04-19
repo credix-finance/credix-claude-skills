@@ -19,7 +19,7 @@ The input file the swarm reads. Lives at the repo root.
 | `depends_on`    | string[] | yes      | —          | Empty `[]` if none. Explicit only; swarm does not infer.         |
 | `scope_files`   | string[] | no       | `[]`       | Globs of files this task expects to touch. Used for overlap detection, not enforcement. |
 | `requires_plan` | bool     | no       | `false`    | Teammate must submit a plan for lead approval before implementing. |
-| `model`         | string   | no       | `"sonnet"` | `"sonnet"` or `"opus"`.                                          |
+| `model`         | string   | no       | (inherit)  | Any model id your Claude Code harness accepts. Omit to inherit from the lead's user settings. If you must pin, prefer `claude-opus-4-7[1m]` for complex tasks. |
 
 ### `id` rules
 
@@ -43,8 +43,11 @@ same files. It does **not** enforce file boundaries at runtime.
 
 ### `model`
 
-Sonnet is the default. Opt into Opus per-task for harder work (complex
-refactors, tricky debugging, performance-sensitive changes).
+Omit to inherit the model from the lead's user settings — the swarm does
+not pick a model for you. Pin a `model` per task only when you specifically
+need a different one for that task. For complex refactors, tricky debugging,
+or performance-sensitive changes, pin `"claude-opus-4-7[1m]"` (Opus 4.7 with
+1M context).
 
 ## What the skill refuses
 
@@ -73,15 +76,15 @@ refactors, tricky debugging, performance-sensitive changes).
       "spec": "Add POST /auth/login (email+password → session cookie) and POST /auth/logout (clear cookie) in src/api/auth.py. Wire into the router. Integration tests in tests/api/test_auth.py covering happy path, wrong password, unknown email, logout while unauthenticated. Acceptance: all auth tests pass; manual curl against the dev server returns expected status codes.",
       "depends_on": ["add-user-model"],
       "scope_files": ["src/api/auth.py", "src/api/__init__.py", "tests/api/test_auth.py"],
-      "requires_plan": true
+      "requires_plan": true,
+      "model": "claude-opus-4-7[1m]"
     },
     {
       "id": "docs-auth-readme",
       "title": "Document auth setup in README",
       "spec": "Add a 'Authentication' section to README.md: env vars, endpoint usage, cookie lifetime. No code changes. Acceptance: section renders correctly in GitHub preview; links to API reference work.",
       "depends_on": [],
-      "scope_files": ["README.md"],
-      "model": "sonnet"
+      "scope_files": ["README.md"]
     }
   ]
 }
@@ -93,6 +96,9 @@ In this example:
   parallel.
 - `add-auth-endpoints` waits for `add-user-model` to merge, then its worktree
   is rebased onto fresh `main` and the teammate is spawned. It requires a plan
-  approval before implementing.
+  approval before implementing and pins `claude-opus-4-7[1m]` because the work
+  is complex.
+- `add-user-model` and `docs-auth-readme` do not set `model` and inherit
+  whatever the lead's user settings specify.
 - No scope overlap (`src/models/**` vs `src/api/**` vs `README.md`), so no
   warnings.
