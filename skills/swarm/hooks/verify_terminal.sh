@@ -37,6 +37,19 @@ fi
 
 branch="swarm/${task_id}"
 
+# Only treat this as a swarm task if a matching branch (or worktree) exists.
+# Otherwise this is just a regular TaskCreate id from a normal session and we
+# must not block it.
+if command -v git >/dev/null 2>&1; then
+  if ! git rev-parse --verify --quiet "refs/heads/${branch}" >/dev/null 2>&1 \
+     && ! git rev-parse --verify --quiet "refs/remotes/origin/${branch}" >/dev/null 2>&1; then
+    exit 0
+  fi
+else
+  # No git available; we can't disambiguate. Be conservative and let it pass.
+  exit 0
+fi
+
 if ! command -v gh >/dev/null 2>&1; then
   echo "verify_terminal: gh CLI not installed; cannot verify PR state for ${task_id}." >&2
   exit 2
