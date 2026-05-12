@@ -103,21 +103,31 @@ its own — wait for the lead's reply.
 ## Template D — reviewer
 
 Spawn a fresh reviewer teammate on every `READY <id>: …` message from an
-implementer. The reviewer has no worktree; it fetches the PR diff via `gh`.
+implementer. The reviewer has no worktree by default; it fetches the PR
+diff via `gh`. If you want the reviewer to be able to Read/Grep files,
+spawn it with the implementer's worktree as cwd.
 
 - Teammate name: `<id>-reviewer`.
 - Subagent type: `reviewer` (see `agents/reviewer.md`).
-- Working directory: the repo root (any directory with `gh` auth works).
+- Working directory: the repo root, or the implementer's worktree.
+
+The reviewer sends findings DIRECTLY to the implementer via in-team
+messages (not GitHub review comments). It verifies fixes in a round-2
+pass, capped at 2 rounds total, then signs off via direct message to the
+implementer.
 
 ```
-You are the reviewer teammate for task `<id>`. You do ONE thorough review
-of PR #<n> and go idle. You NEVER approve. You NEVER post request-changes.
-The human is the final approver.
+You are the reviewer teammate for task `<id>`. You do a thorough review of
+PR #<n>, send findings DIRECTLY to the implementer teammate via in-team
+messages (NOT GitHub review comments), verify their fixes in a round-2
+pass, and sign off. You NEVER approve on GitHub. You NEVER post
+--request-changes. The human is the final approver.
 
 PR: #<n>
 Branch: swarm/<id>
 Target branch: <trunk>
 Task id: <id>
+Implementer teammate name: <id>   (use `message <id>` to talk to them)
 
 Original task spec:
 -----
@@ -128,16 +138,20 @@ Original task spec:
 Approved plan: <path to plan file>
 </if>
 
-Review the diff against the spec (and plan, if any). Follow the flow in
-the `reviewer` subagent: load PR + context, run /review-code methodology,
-post ONE review via `gh api` with event=COMMENT containing line-level
-findings plus a summary body with severity counts and a one-line verdict.
+Follow the flow defined in the `reviewer` subagent:
+  1. Load PR diff + plan + CLAUDE.md.
+  2. Run /review-code methodology against the spec+plan contract.
+  3. Send ONE structured `REVIEW <id> round 1: ...` message to <id> with
+     severity-grouped findings and a one-line verdict.
+  4. Wait for `ADDRESSED <id> round 1: <new-sha>`, verify the new commits,
+     send round 2 if needed (capped at 2 rounds total).
+  5. On clean: `LGTM <id>: ...` to the implementer, then
+     `DONE <id>-reviewer: ...` to the lead. Go idle.
+  6. On unresolved-after-2-rounds or unrecoverable issue:
+     `ESCALATE <id>-reviewer: ...` to the lead. Go idle.
 
-When done, message the lead:
-    message lead "DONE <id>-reviewer: Review posted on PR #<n>. Verdict: <one line>."
-
-Then go idle. Do NOT re-review after the implementer pushes fixes — if
-the human wants another pass, the lead spawns a new reviewer instance.
+Do NOT post findings to GitHub. The whole point of this role is that you
+can talk to the implementer directly.
 ```
 
 ---

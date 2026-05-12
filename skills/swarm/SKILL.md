@@ -124,10 +124,12 @@ reply. Relay the user's decision back to the teammate (approve / revise
 with feedback / cancel). The lead does **not** auto-approve plans.
 
 **On every `READY <id>: …`**, spawn a fresh `reviewer` teammate named
-`<id>-reviewer` using Template D. The reviewer does one thorough pass,
-posts native GitHub review comments (never `--approve`, never
-`--request-changes`), and goes idle. The implementer's `/watch-pr` picks
-those comments up and cycles. Review always runs — not gated on opt-in.
+`<id>-reviewer` using Template D. The reviewer sends findings **directly
+to the implementer teammate** via in-team messages (NOT as GitHub review
+comments), verifies fixes in a round-2 pass, and signs off via direct
+message. The reviewer never uses `--approve` or `--request-changes`. The
+implementer addresses findings in-place per section 5 of the implementer
+subagent. Review always runs — not gated on opt-in.
 
 ### 5. The loop
 
@@ -142,9 +144,11 @@ the flow. Full definition in `agents/implementer.md`. Summary:
    and quality gates, PR description update, marking ready, and handing
    off to `/watch-pr`. **No self-review** — an external reviewer handles it.
 4. **Signal READY** — message `READY <id>: PR #<n> ready for review` and
-   keep `/watch-pr` running. The lead spawns a `reviewer` teammate, whose
-   comments are picked up by `/watch-pr` and addressed like any other
-   review feedback.
+   keep `/watch-pr` running for CI. The lead spawns a `reviewer` teammate
+   that messages the implementer DIRECTLY with findings (no GitHub review
+   round-trip). The implementer addresses each round in-place and replies
+   `ADDRESSED <id> round <n>: <new-sha>` to the reviewer, repeating until
+   `LGTM <id>: ...` arrives.
 5. **Done** — when `/watch-pr` reports CI green + human-approved + no
    unresolved threads, message `DONE <id>: PR #<n>` and go idle.
    **Do NOT run `gh pr merge`.**
