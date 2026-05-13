@@ -44,6 +44,33 @@ happens in the message log.
 `INGEST → SETUP → SPAWN PLANNER → APPROVE PLAN → SPAWN IMPLEMENTER →
 SPAWN REVIEWER → LOOP → DONE`
 
+### Critical: teammates, not plain subagents
+
+Every agent spawned by this skill MUST be a **teammate**, not a plain
+subagent. Teammates are addressable, persist across turns, and can
+`SendMessage` each other directly — which is what makes the
+reviewer↔implementer loop in step 7 possible without the lead acting as a
+go-between.
+
+When calling the `Agent` tool, you MUST pass BOTH `team_name` AND `name`
+(in addition to `subagent_type` and `prompt`). Omitting either parameter
+silently downgrades the spawn to a plain subagent — the agent runs inline,
+returns one result, cannot be messaged, and the entire review loop
+collapses. There is no warning when this happens; the only symptom is that
+the UI does not open a new terminal split / status-bar entry.
+
+| Param | Required | Value |
+|---|---|---|
+| `team_name` | yes | the task `id` (e.g. `pe-1234`) — same for all three spawns |
+| `name` | yes | unique per role (`<id>-planner`, `<id>`, `<id>-reviewer`) |
+| `subagent_type` | yes | `planner`, `implementer`, or `reviewer` |
+| `prompt` | yes | Template P / I / R below, with placeholders filled |
+| `model` | optional | only if the user pins a specific model |
+
+If the user reports "I didn't see a new split open" or "the status bar
+looks normal", the spawn was downgraded. Stop, tear down, and re-spawn
+correctly with both `team_name` and `name`.
+
 ### 1. Ingest
 
 Determine the input from `$ARGUMENTS`.
@@ -84,16 +111,23 @@ it as their cwd.
 
 ### 3. Create the team and spawn the planner
 
-Create an agent team for this task.
+Create an agent team for this task with `TeamCreate`. The team name is the
+task `id` (e.g. `pe-1234`) — reuse it for every subsequent spawn so all
+three teammates share the same team context.
 
-Spawn the `planner` teammate:
+Spawn the `planner` teammate via the `Agent` tool. **All five parameters
+below are required** — omitting `team_name` or `name` downgrades the
+spawn to a plain subagent and breaks the review loop (see the "Critical"
+note above).
 
-- **Name:** the task `id` plus `-planner` (e.g. `pe-1234-planner`).
-- **Subagent type:** `planner` (defined at `agents/planner.md`).
-- **Working directory:** the chosen working directory from step 2.
-- **Model:** inherits from the lead's settings unless the user pins one.
-- **Spawn prompt:** use Template P (below). Paste the spec **verbatim** in
-  the prompt — do NOT deliver the spec via a post-spawn message.
+- **`team_name`:** the task `id` (e.g. `pe-1234`).
+- **`name`:** the task `id` plus `-planner` (e.g. `pe-1234-planner`).
+- **`subagent_type`:** `planner` (defined at `agents/planner.md`).
+- **`prompt`:** Template P (below). Paste the spec **verbatim** in the
+  prompt — do NOT deliver the spec via a post-spawn message.
+- Working directory: the chosen working directory from step 2 (passed in
+  the prompt body so the teammate `cd`s there before working).
+- Model: inherits from the lead's settings unless the user pins one.
 
 Wait for one of:
 
@@ -127,13 +161,18 @@ Use `AskUserQuestion` for the choice. On the user's reply:
 
 After `DONE-PLAN <id>: Plan committed at <path>. Draft PR #<n> opened`:
 
-- **Name:** the task `id` (e.g. `pe-1234`).
-- **Subagent type:** `implementer` (defined at `agents/implementer.md`).
-- **Working directory:** same as the planner's.
-- **Model:** inherits from the lead's settings unless the user pins one.
-- **Spawn prompt:** use Template I (below). Include the
-  `approved_plan_path` so the implementer skips its internal planning
-  step. Paste the spec verbatim.
+Spawn via the `Agent` tool. **`team_name` AND `name` are both required** —
+see the "Critical" note above.
+
+- **`team_name`:** the task `id` (same value used in step 3).
+- **`name`:** the task `id` (e.g. `pe-1234`) — the bare id, no suffix, so
+  the reviewer can `message <id>` directly per Template R.
+- **`subagent_type`:** `implementer` (defined at `agents/implementer.md`).
+- **`prompt`:** Template I (below). Include the `approved_plan_path` so
+  the implementer skips its internal planning step. Paste the spec
+  verbatim.
+- Working directory: same as the planner's.
+- Model: inherits from the lead's settings unless the user pins one.
 
 The implementer runs `/implement-plan` (which detects the existing draft
 PR opened by the planner) and signals `READY <id>: PR #<n>` when the PR
@@ -147,15 +186,20 @@ surface it to the user.
 
 When the implementer sends `READY <id>: PR #<n> ready for review`:
 
-- **Name:** the task `id` plus `-reviewer` (e.g. `pe-1234-reviewer`).
-- **Subagent type:** `reviewer` (defined at `agents/reviewer.md`).
-- **Working directory:** the implementer's working directory (so the
-  reviewer can Read/Grep files alongside `gh pr diff`). If you're not
-  using a worktree, the repo root is fine.
-- **Model:** inherits from the lead's settings.
-- **Spawn prompt:** use Template R (below). Include the implementer
-  teammate's name so the reviewer can `message <implementer-name>`
-  directly with findings. Include the approved plan path and the spec.
+Spawn via the `Agent` tool. **`team_name` AND `name` are both required**
+— without them the reviewer cannot `SendMessage` the implementer and the
+whole review loop collapses into the lead intermediating.
+
+- **`team_name`:** the task `id` (same value used in steps 3 and 5).
+- **`name`:** the task `id` plus `-reviewer` (e.g. `pe-1234-reviewer`).
+- **`subagent_type`:** `reviewer` (defined at `agents/reviewer.md`).
+- **`prompt`:** Template R (below). Include the implementer teammate's
+  name so the reviewer can `message <implementer-name>` directly with
+  findings. Include the approved plan path and the spec.
+- Working directory: the implementer's working directory (so the reviewer
+  can Read/Grep files alongside `gh pr diff`). If you're not using a
+  worktree, the repo root is fine.
+- Model: inherits from the lead's settings.
 
 ### 7. The review loop
 
@@ -335,6 +379,12 @@ than `swarm` (no DAG, no waves, no scope-overlap analysis).
 
 ## Common failure modes
 
+- **Silent subagent downgrade:** the lead spawns via `Agent` without
+  `team_name` and `name`, so the planner/implementer/reviewer come up as
+  plain subagents instead of teammates. Symptom: no new terminal split,
+  no status-bar entry, and the reviewer can't `SendMessage` the
+  implementer (the review loop in step 7 collapses). Fix: re-spawn with
+  both parameters set per steps 3 / 5 / 6.
 - **False "READY":** implementer says READY before CI has even started.
   The reviewer spawns anyway and reviews the diff; CI failures are handled
   in parallel by `/watch-pr`.
