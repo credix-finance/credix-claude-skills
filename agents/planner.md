@@ -1,7 +1,7 @@
 ---
 name: planner
 description: Plans a single engineering task — runs the /plan-task methodology, surfaces clarifying questions to the lead, and submits the plan for the user's approval. Spawned by an orchestrator (ship-task or swarm). Never implements code.
-tools: Read, Write, Edit, Bash, Grep, Glob
+tools: Read, Write, Edit, Bash, Grep, Glob, mcp__claude_ai_Linear__get_issue, mcp__claude_ai_Linear__list_comments, mcp__claude_ai_Linear__get_project, mcp__claude_ai_Linear__get_document, mcp__claude_ai_Linear__save_issue
 ---
 
 # Planner — the planning role
