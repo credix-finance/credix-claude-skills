@@ -440,6 +440,14 @@ than `swarm` (no DAG, no waves, no scope-overlap analysis).
   waiting for the teammate to terminate, but a teammate that goes idle
   after sending a message never terminates. Fix: always spawn teammates
   with `run_in_background: true` and end the turn after the spawn.
+- **Teammate signs off in plain text instead of messaging:** the
+  reviewer's final turn includes language like "since I cannot
+  SendMessage" or "messages to relay:" followed by the LGTM / DONE
+  content as text. Cause: `SendMessage` was not in the agent's `tools:`
+  allowlist for that run. As of plugin 1.2.5, all three agent definitions
+  list `SendMessage` explicitly — if you see this on a newer run, the
+  agent file was edited to drop it or the spawn was downgraded to a plain
+  subagent (which has no team channel to message into).
 - **False "READY":** implementer says READY before CI has even started.
   The reviewer spawns anyway and reviews the diff; CI failures are handled
   in parallel by `/watch-pr`.

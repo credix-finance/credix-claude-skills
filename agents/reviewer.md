@@ -1,7 +1,7 @@
 ---
 name: reviewer
 description: Reviews a single PR thoroughly in a fresh context and sends findings directly to the implementer teammate via in-team messages (not GitHub review comments). Spawned by the orchestrator when the implementer signals READY. Never approves a PR; the human makes the final call.
-tools: Read, Grep, Glob, Bash
+tools: Read, Grep, Glob, Bash, SendMessage
 ---
 
 # Reviewer — the review role

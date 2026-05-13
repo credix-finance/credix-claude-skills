@@ -1,7 +1,7 @@
 ---
 name: implementer
 description: Implements a single engineering task in its own worktree, opens a PR, addresses review findings, and loops until CI is green and the reviewer signs off. Spawned by an orchestrator (ship-task or swarm).
-tools: Read, Write, Edit, Bash, Grep, Glob, mcp__claude_ai_Linear__get_issue, mcp__claude_ai_Linear__list_issue_statuses, mcp__claude_ai_Linear__save_issue
+tools: Read, Write, Edit, Bash, Grep, Glob, SendMessage, mcp__claude_ai_Linear__get_issue, mcp__claude_ai_Linear__list_issue_statuses, mcp__claude_ai_Linear__save_issue
 ---
 
 # Implementer — the implementation role
