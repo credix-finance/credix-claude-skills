@@ -65,11 +65,43 @@ the UI does not open a new terminal split / status-bar entry.
 | `name` | yes | unique per role (`<id>-planner`, `<id>`, `<id>-reviewer`) |
 | `subagent_type` | yes | `planner`, `implementer`, or `reviewer` |
 | `prompt` | yes | Template P / I / R below, with placeholders filled |
+| `run_in_background` | yes | **`true`** — see "Spawn in background" below |
 | `model` | optional | only if the user pins a specific model |
 
 If the user reports "I didn't see a new split open" or "the status bar
 looks normal", the spawn was downgraded. Stop, tear down, and re-spawn
 correctly with both `team_name` and `name`.
+
+### Critical: spawn in background, then end the turn
+
+Every `Agent` spawn in this skill MUST set `run_in_background: true`.
+The planner / implementer / reviewer are long-lived — they send a message
+to the lead (or to each other) and then go idle waiting for a reply.
+They do NOT terminate after the first message. So:
+
+- **Foreground spawn (`run_in_background` omitted or `false`)** — the
+  `Agent` tool blocks until the teammate terminates. The planner sends
+  `message lead "PLAN <id>: ..."`, goes idle, and the Agent call stays
+  blocked. The lead never observes the message and the flow stalls. This
+  is the most common cause of "the planner sent PLAN but the lead didn't
+  get it."
+- **Background spawn (`run_in_background: true`)** — the `Agent` tool
+  returns control to the lead immediately. The lead should then **end
+  its turn** (no further tool calls in the same turn). When the teammate
+  sends a message to the lead, the runtime re-invokes the lead with the
+  message in context, per the standard background-agent notification
+  flow.
+
+Do NOT poll, `sleep`, or call `Monitor` to "wait for" a teammate
+message after spawning. The Agent tool docs are explicit: when an agent
+runs in the background you are automatically notified — proactive polling
+is wasted and can drop messages. Spawn, end the turn, wait.
+
+Exception: it is fine to make several spawn-related tool calls in the
+same turn (e.g. `TeamCreate` followed by `Agent`), but the LAST tool call
+before yielding back to the user / runtime must leave nothing further to
+do. After spawning the planner, the lead's turn is done — the next turn
+fires when the planner sends a message.
 
 ### 1. Ingest
 
@@ -115,19 +147,25 @@ Create an agent team for this task with `TeamCreate`. The team name is the
 task `id` (e.g. `pe-1234`) — reuse it for every subsequent spawn so all
 three teammates share the same team context.
 
-Spawn the `planner` teammate via the `Agent` tool. **All five parameters
+Spawn the `planner` teammate via the `Agent` tool. **All six parameters
 below are required** — omitting `team_name` or `name` downgrades the
-spawn to a plain subagent and breaks the review loop (see the "Critical"
-note above).
+spawn to a plain subagent and breaks the review loop; omitting
+`run_in_background` causes the planner's `PLAN` message to never reach
+the lead (see the two "Critical" notes above).
 
 - **`team_name`:** the task `id` (e.g. `pe-1234`).
 - **`name`:** the task `id` plus `-planner` (e.g. `pe-1234-planner`).
 - **`subagent_type`:** `planner` (defined at `agents/planner.md`).
 - **`prompt`:** Template P (below). Paste the spec **verbatim** in the
   prompt — do NOT deliver the spec via a post-spawn message.
+- **`run_in_background`:** `true`.
 - Working directory: the chosen working directory from step 2 (passed in
   the prompt body so the teammate `cd`s there before working).
 - Model: inherits from the lead's settings unless the user pins one.
+
+After the spawn returns, **end the turn**. Do not call further tools.
+The planner's `QUESTION` / `PLAN` / `BLOCKED` / `ESCALATE` message will
+re-invoke the lead in a fresh turn.
 
 Wait for one of:
 
@@ -161,8 +199,9 @@ Use `AskUserQuestion` for the choice. On the user's reply:
 
 After `DONE-PLAN <id>: Plan committed at <path>. Draft PR #<n> opened`:
 
-Spawn via the `Agent` tool. **`team_name` AND `name` are both required** —
-see the "Critical" note above.
+Spawn via the `Agent` tool. **`team_name`, `name`, AND
+`run_in_background: true` are all required** — see the two "Critical"
+notes above.
 
 - **`team_name`:** the task `id` (same value used in step 3).
 - **`name`:** the task `id` (e.g. `pe-1234`) — the bare id, no suffix, so
@@ -171,8 +210,12 @@ see the "Critical" note above.
 - **`prompt`:** Template I (below). Include the `approved_plan_path` so
   the implementer skips its internal planning step. Paste the spec
   verbatim.
+- **`run_in_background`:** `true`.
 - Working directory: same as the planner's.
 - Model: inherits from the lead's settings unless the user pins one.
+
+After the spawn returns, **end the turn**. The implementer's `READY` /
+`BLOCKED` / `ESCALATE` message will re-invoke the lead.
 
 The implementer runs `/implement-plan` (which detects the existing draft
 PR opened by the planner) and signals `READY <id>: PR #<n>` when the PR
@@ -186,9 +229,11 @@ surface it to the user.
 
 When the implementer sends `READY <id>: PR #<n> ready for review`:
 
-Spawn via the `Agent` tool. **`team_name` AND `name` are both required**
-— without them the reviewer cannot `SendMessage` the implementer and the
-whole review loop collapses into the lead intermediating.
+Spawn via the `Agent` tool. **`team_name`, `name`, AND
+`run_in_background: true` are all required** — without `team_name`/`name`
+the reviewer cannot `SendMessage` the implementer and the review loop
+collapses; without `run_in_background` the reviewer's `DONE`/`ESCALATE`
+message to the lead can stall.
 
 - **`team_name`:** the task `id` (same value used in steps 3 and 5).
 - **`name`:** the task `id` plus `-reviewer` (e.g. `pe-1234-reviewer`).
@@ -196,10 +241,14 @@ whole review loop collapses into the lead intermediating.
 - **`prompt`:** Template R (below). Include the implementer teammate's
   name so the reviewer can `message <implementer-name>` directly with
   findings. Include the approved plan path and the spec.
+- **`run_in_background`:** `true`.
 - Working directory: the implementer's working directory (so the reviewer
   can Read/Grep files alongside `gh pr diff`). If you're not using a
   worktree, the repo root is fine.
 - Model: inherits from the lead's settings.
+
+After the spawn returns, **end the turn**. The reviewer-and-implementer
+loop runs without the lead until one of them sends `DONE` or `ESCALATE`.
 
 ### 7. The review loop
 
@@ -385,6 +434,12 @@ than `swarm` (no DAG, no waves, no scope-overlap analysis).
   no status-bar entry, and the reviewer can't `SendMessage` the
   implementer (the review loop in step 7 collapses). Fix: re-spawn with
   both parameters set per steps 3 / 5 / 6.
+- **Missed `PLAN` (or `READY` / `DONE`) message:** the teammate sends a
+  message to the lead, but the lead never observes it. Almost always
+  caused by spawning the teammate in foreground — the `Agent` call blocks
+  waiting for the teammate to terminate, but a teammate that goes idle
+  after sending a message never terminates. Fix: always spawn teammates
+  with `run_in_background: true` and end the turn after the spawn.
 - **False "READY":** implementer says READY before CI has even started.
   The reviewer spawns anyway and reviews the diff; CI failures are handled
   in parallel by `/watch-pr`.
