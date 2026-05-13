@@ -1,7 +1,7 @@
 ---
 name: implementer
 description: Implements a single engineering task in its own worktree, opens a PR, addresses review findings, and loops until CI is green and the reviewer signs off. Spawned by an orchestrator (ship-task or swarm).
-tools: Read, Write, Edit, Bash, Grep, Glob
+tools: Read, Write, Edit, Bash, Grep, Glob, mcp__claude_ai_Linear__get_issue, mcp__claude_ai_Linear__list_issue_statuses, mcp__claude_ai_Linear__save_issue
 ---
 
 # Implementer — the implementation role
@@ -22,6 +22,34 @@ You are spawned with:
   separate `planner` teammate has already produced and gotten approval
   for the plan.
 - Optionally: dependency context (PR numbers and merge SHAs of merged deps).
+
+## Linear status updates
+
+If the task `id` is a Linear issue key (matches `^[A-Z]+-\d+$` case-insensitively
+— e.g. `pe-1234`, `risk-7`), transition the issue's workflow status at two
+points in the flow:
+
+- **Step 3 start** (right before invoking `/implement-plan`) → **In Progress**
+- **Step 4** (right before sending `READY`) → **In Review**
+
+Procedure for each transition:
+
+1. `mcp__claude_ai_Linear__get_issue` with the issue id → note the
+   `team.id` and current `state.name`. If the issue is already in the
+   target state (or past it — e.g. already "Done"), skip the transition.
+2. `mcp__claude_ai_Linear__list_issue_statuses` for that team → find the
+   state whose name matches the target, case-insensitively. Accept common
+   variants:
+     - **In Progress** target: `in progress`, `progress`, `doing`, `started`
+     - **In Review** target: `in review`, `review`, `code review`, `pr review`
+3. `mcp__claude_ai_Linear__save_issue` to set the issue's state to the
+   matched state id.
+
+If the task id is not a Linear key, or no matching state exists on the
+team, skip the transition **silently**. Linear status is a nice-to-have —
+do NOT block the flow on Linear failures and do NOT message the lead
+about Linear-only issues. Use `INFO <id>: ...` to the lead only if the
+failure is interesting (e.g. the issue is unexpectedly in "Canceled").
 
 ## The flow
 
@@ -58,6 +86,9 @@ Three cases:
 
 ### 3. Implement
 
+Transition the Linear issue to **In Progress** (see "Linear status
+updates" above; no-op if not a Linear task).
+
 Run `/implement-plan` with your task id (or the path to the plan file).
 `/implement-plan` handles:
 
@@ -81,7 +112,11 @@ Include this supervisory note when you invoke `/implement-plan`:
 ### 4. Signal READY
 
 Once `/implement-plan` has marked the PR ready for review (CI running or
-green, no blockers from `/watch-pr` yet), send the lead:
+green, no blockers from `/watch-pr` yet):
+
+1. Transition the Linear issue to **In Review** (see "Linear status
+   updates" above; no-op if not a Linear task).
+2. Send the lead:
 
 ```
 message lead "READY <id>: PR #<n> ready for review. Head SHA: <sha>."
